@@ -1,0 +1,17 @@
+jenkins-yocto-tools
+-------------------
+Helper scripts for invoking bitbake in a jenkins job.  Handles
+collecting artifacts, logging output, and provides forensics to help
+debug build failures.
+
+These scripts do not require you to delete the workspace between every
+run.  Indeed, Jenkins does not do this unless you specifically configure
+it to.  Build times are typically much faster in a previously-used
+directory, since fewer parse, sstate, and build tasks will need to be
+run.  The scripts use a lockfile to prevent multiple instances from
+running in the same workspace, as well as to prevent any cleanup task
+from removing an in-use workspace.  If a build fails, the workspace is
+marked as having failed and tmp/ is removed on the next run.
+
+In the case of a build failure, fail.tgz is created.  This tarball will
+contain the work directory of the recipe that failed.

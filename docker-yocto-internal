@@ -1,0 +1,37 @@
+#!/bin/bash
+
+build_dir="$1"
+shift
+home_dir="$1"
+shift
+username="$1"
+shift
+
+# Avoid prompts about SSH hosts
+mkdir -p $HOME/.ssh
+[ -e $home_dir/.ssh/known_hosts ] && cp $home_dir/.ssh/known_hosts $HOME/.ssh/known_hosts
+# Make sure we can use git for patching, etc
+[ -e $home_dir/.gitconfig ] && cp $home_dir/.gitconfig $HOME/.gitconfig
+# Make sure svn fetching works
+ln -s $home_dir/.subversion $HOME/.subversion
+# Use user's ~/.yocto.conf
+[ -e $home_dir/.yocto.conf ] && cp $home_dir/.yocto.conf $HOME/.yocto.conf
+# Copy .Xauthority so X forwarding works
+[ -e $home_dir/.Xauthority ] && cp $home_dir/.Xauthority $HOME/.Xauthority
+# Use the user's effective ID when ssh-ing (cloning with ssh protocol).
+echo "User $username" > $HOME/.ssh/config
+
+shopt -s dotglob
+if [ -d $home_dir/.docker-skel ]; then
+    for i in $home_dir/.docker-skel/*; do
+        cp -L $i $HOME
+    done
+fi
+
+# Increase the lower limit for process count to the upper limit
+ulimit -u hard
+
+# PWD is the build-bundle directory
+. poky/oe-init-build-env "$build_dir"
+
+exec "$@"

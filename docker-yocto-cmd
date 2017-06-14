@@ -1,0 +1,48 @@
+#!/bin/bash
+
+build_bundle=$(realpath $(dirname $0)/..)
+docker_image="crops/poky:ubuntu-16.04"
+
+if [ -e $build_bundle/docker-image ]; then
+    docker_image=$(cat $build_bundle/docker-image)
+fi
+
+# Pass in SSH agent
+if [ -n "$SSH_AUTH_SOCK" ]; then
+    SSH_AUTH_VOLUME="-v $SSH_AUTH_SOCK:$SSH_AUTH_SOCK"
+fi
+
+# Check if we're being run interactively
+if tty -s; then
+    TTY_FLAGS="-ti"
+fi
+
+if [ -z "$BUILDDIR" ]; then
+    echo "BUILDDIR is not set; source init-build-env first" >&2
+    exit 1
+fi
+
+if [ -e ~/.docker-bitbake.dirs ]; then
+    while read -r line; do
+        mkdir -p $line
+        USER_VOLUMES="$USER_VOLUMES -v $line:$line"
+    done < ~/.docker-bitbake.dirs
+fi
+
+cd $BUILDDIR
+
+# Expose the entire build-bundle, the user's home (read-only) and pass SSH into the container
+docker pull "$docker_image"
+exec docker run --rm \
+    $TTY_FLAGS \
+    -v /tmp:/tmp \
+    -v $build_bundle:$build_bundle \
+    -v $HOME:$HOME:ro \
+    $USER_VOLUMES \
+    $SSH_AUTH_VOLUME \
+    $DOCKER_BITBAKE_EXTRA_ARGS \
+    -e DISPLAY=$DISPLAY \
+    -e SSH_AUTH_SOCK=$SSH_AUTH_SOCK \
+    "$docker_image" \
+        --workdir=$build_bundle \
+        --cmd="$build_bundle/jenkins-yocto-tools/docker-yocto-internal $BUILDDIR $HOME $USER $*"
